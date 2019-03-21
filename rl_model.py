@@ -36,7 +36,7 @@ class DQN(nn.Module):
         x = F.relu(self.bn3(self.conv3(x)))
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
-        x = F.softmax(self.fc2(x))
+        x = self.fc2(x)
         return x
 
     def choose_action(self, state, epsilon=1):
@@ -90,5 +90,53 @@ class Replaymemory(object):
 # Transform input RGB image (210, 160, 3) to Grayscale Tensor of shape (bs, 1, 65, 50)
 transform_screen = T.Compose([T.ToPILImage(), T.Resize(50),T.Grayscale(), T.ToTensor()])
 
+def get_screen(environment):
+    """
+    Render and transform a screen given an environment
+    :param environment:
+    :return:
+    """
+    screen = environment.render(mode='rgb_array')
+    screen = transform_screen(screen)
+    screen = screen.unsqueeze(0)
+    return screen
+
 # Named tuple to store experiences in
 Experience = namedtuple('Experience', ('state', 'action', 'next_state', 'reward'))
+
+
+def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
+    """
+    Perform optimization
+    :param policy:
+    :param memory:
+    :return:
+    """
+    # check if enough memory has been aquired
+    if len(memory) < batch_size:
+        return
+
+    batch = memory.sample(batch_size)
+    batch = Experience(*zip(*batch))
+
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), dtype=torch.uint8)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+
+    state_batch = torch.cat(batch.state)
+    action_batch = torch.cat(batch.action)
+    reward_batch = torch.cat(batch.reward)
+
+    # Compute Policy values
+    state_action_values = policy(state_batch)
+
+    next_state_values = torch.zeros(batch_size)
+    next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach()
+    expected_state_action_values = reward_batch + gamma * next_state_values
+
+    loss = nn.MSELoss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+    # Optimization step
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
