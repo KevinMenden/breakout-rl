@@ -11,7 +11,7 @@ class DQN(nn.Module):
 
     def __init__(self):
         super(DQN, self).__init__()
-        self.n_actions = 2
+        self.n_actions = 4
 
         self.conv1 = nn.Conv2d(1, 16, kernel_size=4, stride=2)
         self.bn1 = nn.BatchNorm2d(16)
@@ -42,4 +42,16 @@ transform_image = T.Compose([T.ToPILImage(), T.Resize(50),T.Grayscale(), T.ToTen
 screen = transform_image(screen)
 screen = screen.unsqueeze(0)
 dqn = DQN()
-dqn(screen)
+#dqn(screen)
+
+from itertools import count
+from time import sleep
+env.reset()
+for t in count():
+    env.render()
+    sleep(.2)
+    pos, rew, done, _ = env.step(env.action_space.sample())
+    if done:
+        break
+
+env.close()

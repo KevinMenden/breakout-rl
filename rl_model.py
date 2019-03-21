@@ -36,7 +36,7 @@ class DQN(nn.Module):
         x = F.relu(self.bn3(self.conv3(x)))
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = F.softmax(self.fc2(x))
         return x
 
     def choose_action(self, state, epsilon=1):
@@ -47,10 +47,10 @@ class DQN(nn.Module):
         :return:
         """
         if random.random() > epsilon:
-            return torch.tensor([[random.random()]])
+            return torch.tensor(np.random.choice([0, 1, 2, 3]))
         else:
             with torch.no_grad():
-                return self.forward(state)
+                return torch.argmax(self.forward(state))
 
 class Replaymemory(object):
     """
