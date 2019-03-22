@@ -41,18 +41,17 @@ for ep in range(episodes):
 
     # play one episode
     for t in count():
-
         # choose an action based on the current state
         action = policy.choose_action(state)
-
         # make one step with the action
-        _, reward, done, _ = env.step(action)
+        _, reward, done, _ = env.step(action.item())
+        reward = torch.tensor([reward])
 
         # calculate next state
         last_screen = current_screen
         current_screen = get_screen(env)
         if not done:
-            next_state = state
+            next_state = current_screen - last_screen
         else:
             next_state = None
 

@@ -19,7 +19,7 @@ class DQN(nn.Module):
 
     def __init__(self):
         super(DQN, self).__init__()
-        self.n_actions = 2
+        self.n_actions = 4
 
         self.conv1 = nn.Conv2d(1, 16, kernel_size=4, stride=2)
         self.bn1 = nn.BatchNorm2d(16)
@@ -102,7 +102,7 @@ def get_screen(environment):
     return screen
 
 # Named tuple to store experiences in
-Experience = namedtuple('Experience', ('state', 'action', 'next_state', 'reward'))
+Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))
 
 
 def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
@@ -123,15 +123,19 @@ def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
     non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
 
     state_batch = torch.cat(batch.state)
-    action_batch = torch.cat(batch.action)
+    action_batch = torch.tensor(batch.action).unsqueeze(1)
     reward_batch = torch.cat(batch.reward)
 
     # Compute Policy values
     state_action_values = policy(state_batch)
+    print(state_action_values.size())
+    print(action_batch.size())
+    state_action_values = state_action_values.gather(1, action_batch)
 
     next_state_values = torch.zeros(batch_size)
     next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = reward_batch + gamma * next_state_values
+    expected_state_action_values = expected_state_action_values.unsqueeze(1)
 
     loss = nn.MSELoss(state_action_values, expected_state_action_values.unsqueeze(1))
 
