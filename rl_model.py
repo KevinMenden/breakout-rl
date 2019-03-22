@@ -105,7 +105,7 @@ def get_screen(environment):
 Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))
 
 
-def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
+def training_step(policy, target, memory, optimizer, criterion, batch_size=32, gamma=0.9):
     """
     Perform optimization
     :param policy:
@@ -128,8 +128,6 @@ def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
 
     # Compute Policy values
     state_action_values = policy(state_batch)
-    print(state_action_values.size())
-    print(action_batch.size())
     state_action_values = state_action_values.gather(1, action_batch)
 
     next_state_values = torch.zeros(batch_size)
@@ -137,7 +135,7 @@ def training_step(policy, target, memory, optimizer, batch_size=32, gamma=0.9):
     expected_state_action_values = reward_batch + gamma * next_state_values
     expected_state_action_values = expected_state_action_values.unsqueeze(1)
 
-    loss = nn.MSELoss(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values)
 
     # Optimization step
     optimizer.zero_grad()

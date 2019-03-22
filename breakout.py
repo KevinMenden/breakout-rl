@@ -38,13 +38,18 @@ for ep in range(episodes):
     last_screen = get_screen(env) # get initial screen
     current_screen = get_screen(env)
     state = current_screen - last_screen
-
+    complete_reward = 0
     # play one episode
     for t in count():
+
+        if t % 10:
+            env.render()
+
         # choose an action based on the current state
         action = policy.choose_action(state)
         # make one step with the action
         _, reward, done, _ = env.step(action.item())
+        complete_reward += reward
         reward = torch.tensor([reward])
 
         # calculate next state
@@ -60,11 +65,16 @@ for ep in range(episodes):
         # update state variable
         state = next_state
 
+
         # Perform one step of training on the policy network
-        training_step(policy, target, memory, optimizer, batch_size=batch_size, gamma=gamma)
+        training_step(policy, target, memory, optimizer, criterion=loss, batch_size=batch_size, gamma=gamma)
 
         if ep % target_update == 0:
             target.load_state_dict(policy.state_dict())
+
+        if done:
+            print("Episode: " + str(ep) + " , Reward: " + str(complete_reward))
+            break
 
 
 env.close()
