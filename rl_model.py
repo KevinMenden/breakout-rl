@@ -21,7 +21,7 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.n_actions = 4
 
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=4, stride=2)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=4, stride=2)
         self.bn1 = nn.BatchNorm2d(16)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
         self.bn2 = nn.BatchNorm2d(32)
@@ -101,6 +101,44 @@ def get_screen(environment):
     screen = screen / 255 # normalization
     screen = screen.unsqueeze(0)
     return screen
+
+def transform_frame(frame):
+    """
+    Transform a frame
+    :param frame:
+    :return:
+    """
+    frame = transform_screen(frame)
+    frame = frame / 255
+    return frame
+
+def game_step(env, action, n_steps=3):
+    """
+    Play one step of the game
+    :param env:
+    :param action:
+    :n_steps: number of frames to play
+    :return:
+    """
+    frames = []
+    reward = 0
+    last_state = False
+    for i in range(n_steps):
+        frame, r, done, _ = env.step(action)
+        if done:
+
+            last_state = True
+            reward += r
+        else:
+            frames.append(transform_frame(frame))
+            reward += reward
+    if last_state:
+        state = None
+    else:
+        state = torch.stack(frames, 0)
+        state = state.unsqueeze(0)
+
+    return (state, reward, last_state)
 
 # Named tuple to store experiences in
 Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))

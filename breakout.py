@@ -14,6 +14,7 @@ gamma = 0.9
 target_update = 2
 epsilon_start = 0.9
 epsilon_end = 0.1
+n_steps=3
 #==================#
 
 # Create Breakout environment
@@ -38,14 +39,13 @@ state_counter = 0
 for ep in range(episodes):
 
     env.reset() # reset environment
-    last_screen = get_screen(env) # get initial screen
-    current_screen = get_screen(env)
-    state = current_screen - last_screen
+    # get initial state
+    action = env.action_space.sample()
+    state, _, _ = game_step(env, action, n_steps=n_steps)
     complete_reward = 0
     # play one episode
     for t in count():
         state_counter += 1
-
 
         if t % 10:
             env.render()
@@ -55,24 +55,17 @@ for ep in range(episodes):
 
         # choose an action based on the current state
         action = policy.choose_action(state, epsilon=epsilon)
+
         # make one step with the action
-        _, reward, done, _ = env.step(action.item())
+        next_state, reward, done = game_step(env, action, n_steps=n_steps)
         complete_reward += reward
         reward = torch.tensor([reward])
 
-        # calculate next state
-        last_screen = current_screen
-        current_screen = get_screen(env)
-        if not done:
-            next_state = current_screen - last_screen
-        else:
-            next_state = None
-
         # save the current experience
         memory.push(Experience(state, action, reward, next_state))
+
         # update state variable
         state = next_state
-
 
         # Perform one step of training on the policy network
         training_step(policy, target, memory, optimizer, criterion=loss, batch_size=batch_size, gamma=gamma)
