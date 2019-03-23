@@ -39,14 +39,14 @@ class DQN(nn.Module):
         x = self.fc2(x)
         return x
 
-    def choose_action(self, state, epsilon=1):
+    def choose_action(self, state, epsilon=0.8):
         """
         Choose which action to take
         :param sate:
         :param epsilon:
         :return:
         """
-        if random.random() > epsilon:
+        if random.random() < epsilon:
             return torch.tensor(np.random.choice([0, 1, 2, 3]))
         else:
             with torch.no_grad():
@@ -98,6 +98,7 @@ def get_screen(environment):
     """
     screen = environment.render(mode='rgb_array')
     screen = transform_screen(screen)
+    screen = screen / 255 # normalization
     screen = screen.unsqueeze(0)
     return screen
 
