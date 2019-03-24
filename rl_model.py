@@ -126,17 +126,16 @@ def game_step(env, action, n_steps=3):
     for i in range(n_steps):
         frame, r, done, _ = env.step(action)
         if done:
-
             last_state = True
             reward += r
         else:
             frames.append(transform_frame(frame))
-            reward += reward
+            reward += r
     if last_state:
         state = None
     else:
         state = torch.stack(frames, 0)
-        state = state.unsqueeze(0)
+        state = state.transpose(0, 1)
 
     return (state, reward, last_state)
 

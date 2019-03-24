@@ -59,7 +59,7 @@ for ep in range(episodes):
         # make one step with the action
         next_state, reward, done = game_step(env, action, n_steps=n_steps)
         complete_reward += reward
-        reward = torch.tensor([reward])
+        reward = torch.tensor([reward], dtype=torch.float32)
 
         # save the current experience
         memory.push(Experience(state, action, reward, next_state))
