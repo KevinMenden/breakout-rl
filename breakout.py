@@ -8,10 +8,10 @@ import math
 
 #=== PARAMETERS ===#
 batch_size = 32
-episodes = 1000
+episodes = 3000
 memory_capacity = 10000
 gamma = 0.9
-target_update = 2
+target_update = 5
 epsilon_start = 0.9
 epsilon_end = 0.1
 n_steps=3
@@ -24,7 +24,7 @@ env = gym.make('Breakout-v0')
 policy = DQN()
 target = DQN()
 target.load_state_dict(policy.state_dict())
-target
+
 
 # Define Loss
 loss = nn.MSELoss()
@@ -52,7 +52,7 @@ for ep in range(episodes):
             env.render()
 
         # adjust epsilon
-        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 10000)
+        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 20000)
 
         # choose an action based on the current state
         action = policy.choose_action(state, epsilon=epsilon)
