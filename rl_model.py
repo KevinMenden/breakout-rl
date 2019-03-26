@@ -21,7 +21,7 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.n_actions = 4
 
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=4, stride=2)
+        self.conv1 = nn.Conv2d(4, 16, kernel_size=4, stride=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(32, 32, kernel_size=4, stride=2)
         self.fc1 = nn.Linear(4480, 64)

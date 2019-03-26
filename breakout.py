@@ -8,13 +8,14 @@ import math
 
 #=== PARAMETERS ===#
 batch_size = 32
-episodes = 3000
-memory_capacity = 10000
+episodes = 20000
+memory_capacity = 100000
 gamma = 0.9
 target_update = 5
 epsilon_start = 0.9
 epsilon_end = 0.1
-n_steps=3
+n_steps=4
+lr = 0.0001
 #==================#
 
 # Create Breakout environment
@@ -30,7 +31,7 @@ target.load_state_dict(policy.state_dict())
 loss = nn.MSELoss()
 
 # Create Optimizer
-optimizer = optim.Adam(policy.parameters())
+optimizer = optim.Adam(policy.parameters(), lr=lr)
 
 # Create Memory
 memory = Replaymemory(memory_capacity)
@@ -48,11 +49,11 @@ for ep in range(episodes):
     for t in count():
         state_counter += 1
 
-        if t % 3:
+        if t % 2:
             env.render()
 
         # adjust epsilon
-        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 20000)
+        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 100000)
 
         # choose an action based on the current state
         action = policy.choose_action(state, epsilon=epsilon)
