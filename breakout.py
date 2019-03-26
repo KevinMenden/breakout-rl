@@ -8,22 +8,24 @@ import math
 
 #=== PARAMETERS ===#
 batch_size = 32
-episodes = 20000
-memory_capacity = 100000
+episodes = 10000
+memory_capacity = 50000
 gamma = 0.9
 target_update = 5
 epsilon_start = 0.9
 epsilon_end = 0.1
+epsilon_steps = 10000
 n_steps=4
 lr = 0.0001
+n_actions=4
 #==================#
 
 # Create Breakout environment
 env = gym.make('Breakout-v0')
 
 # Create networks
-policy = DQN()
-target = DQN()
+policy = DQN(n_actions=n_actions)
+target = DQN(n_actions=n_actions)
 target.load_state_dict(policy.state_dict())
 
 
@@ -37,6 +39,7 @@ optimizer = optim.Adam(policy.parameters(), lr=lr)
 memory = Replaymemory(memory_capacity)
 
 state_counter = 0
+epsilon = epsilon_start
 # Play the game
 for ep in range(episodes):
 
@@ -53,7 +56,8 @@ for ep in range(episodes):
             env.render()
 
         # adjust epsilon
-        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 100000)
+        #epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1.*state_counter / 10000)
+        epsilon = epsilon - (epsilon_start - epsilon_end)/epsilon_steps
 
         # choose an action based on the current state
         action = policy.choose_action(state, epsilon=epsilon)

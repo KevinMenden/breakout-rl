@@ -17,15 +17,15 @@ class DQN(nn.Module):
     The policy network for appoximation of the Q function
     """
 
-    def __init__(self):
+    def __init__(self, n_actions=4):
         super(DQN, self).__init__()
-        self.n_actions = 4
+        self.n_actions = n_actions
 
-        self.conv1 = nn.Conv2d(4, 16, kernel_size=4, stride=2)
+        self.conv1 = nn.Conv2d(4, 16, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(32, 32, kernel_size=4, stride=2)
-        self.fc1 = nn.Linear(4480, 64)
-        self.fc2 = nn.Linear(64, self.n_actions)
+        self.fc1 = nn.Linear(768, 256)
+        self.fc2 = nn.Linear(256, self.n_actions)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
