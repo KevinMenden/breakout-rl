@@ -23,9 +23,11 @@ n_actions=4
 # Create Breakout environment
 env = gym.make('Breakout-v0')
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Create networks
-policy = DQN(n_actions=n_actions)
-target = DQN(n_actions=n_actions)
+policy = DQN(n_actions=n_actions).to(device)
+target = DQN(n_actions=n_actions).to(device)
 target.load_state_dict(policy.state_dict())
 
 
@@ -65,7 +67,7 @@ for ep in range(episodes):
         # make one step with the action
         next_state, reward, done = game_step(env, action, n_steps=n_steps)
         complete_reward += reward
-        reward = torch.tensor([reward], dtype=torch.float32)
+        reward = torch.tensor([reward], dtype=torch.float32, device=device)
 
         # save the current experience
         memory.push(Experience(state, action, reward, next_state))

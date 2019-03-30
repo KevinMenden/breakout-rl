@@ -17,9 +17,10 @@ class DQN(nn.Module):
     The policy network for appoximation of the Q function
     """
 
-    def __init__(self, n_actions=4):
+    def __init__(self, n_actions=4, device="cuda"):
         super(DQN, self).__init__()
         self.n_actions = n_actions
+        self.device=device
 
         self.conv1 = nn.Conv2d(4, 16, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
@@ -47,7 +48,7 @@ class DQN(nn.Module):
             return torch.tensor(np.random.choice([0, 1, 2, 3]))
         else:
             with torch.no_grad():
-                return torch.argmax(self.forward(state))
+                return torch.argmax(self.forward(state)).to(self.device)
 
 class Replaymemory(object):
     """
@@ -99,7 +100,7 @@ def get_screen(environment):
     screen = screen.unsqueeze(0)
     return screen
 
-def transform_frame(frame):
+def transform_frame(frame, device="cuda"):
     """
     Transform a frame
     :param frame:
@@ -107,7 +108,7 @@ def transform_frame(frame):
     """
     frame = transform_screen(frame)
     frame = frame / 255
-    return frame
+    return frame.to(device)
 
 def game_step(env, action, n_steps=3):
     """
@@ -132,7 +133,7 @@ def game_step(env, action, n_steps=3):
         state = None
     else:
         state = torch.stack(frames, 0)
-        state = state.transpose(0, 1)
+        state = state.transpose(0, 1).cuda()
 
     return (state, reward, last_state)
 
@@ -140,7 +141,7 @@ def game_step(env, action, n_steps=3):
 Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))
 
 
-def training_step(policy, target, memory, optimizer, criterion, batch_size=32, gamma=0.9):
+def training_step(policy, target, memory, optimizer, criterion, batch_size=32, gamma=0.9, device="cuda"):
     """
     Perform optimization
     :param policy:
@@ -154,7 +155,7 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
     batch = memory.sample(batch_size)
     batch = Experience(*zip(*batch))
 
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), dtype=torch.uint8)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.uint8)
     non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
 
     state_batch = torch.cat(batch.state)
@@ -163,9 +164,9 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
 
     # Compute Policy values
     state_action_values = policy(state_batch)
-    state_action_values = state_action_values.gather(1, action_batch)
+    state_action_values = state_action_values.gather(1, action_batch.cuda())
 
-    next_state_values = torch.zeros(batch_size)
+    next_state_values = torch.zeros(batch_size, device=device)
     next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach()
     expected_state_action_values = reward_batch + gamma * next_state_values
     expected_state_action_values = expected_state_action_values.unsqueeze(1)
