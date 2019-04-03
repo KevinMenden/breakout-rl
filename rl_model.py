@@ -17,15 +17,14 @@ class DQN(nn.Module):
     The policy network for appoximation of the Q function
     """
 
-    def __init__(self, n_actions=4, device="cuda"):
+    def __init__(self, n_actions=4):
         super(DQN, self).__init__()
         self.n_actions = n_actions
-        self.device=device
 
-        self.conv1 = nn.Conv2d(4, 16, kernel_size=8, stride=4)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(32, 32, kernel_size=4, stride=2)
-        self.fc1 = nn.Linear(768, 256)
+        self.fc1 = nn.Linear(192, 256)
         self.fc2 = nn.Linear(256, self.n_actions)
 
     def forward(self, x):
@@ -40,7 +39,7 @@ class DQN(nn.Module):
     def choose_action(self, state, epsilon=0.8):
         """
         Choose which action to take
-        :param sate:
+        :param state:
         :param epsilon:
         :return:
         """
@@ -48,7 +47,7 @@ class DQN(nn.Module):
             return torch.tensor(np.random.choice([0, 1, 2, 3]))
         else:
             with torch.no_grad():
-                return torch.argmax(self.forward(state)).to(self.device)
+                return torch.argmax(self.forward(state))
 
 class Replaymemory(object):
     """
@@ -86,7 +85,7 @@ class Replaymemory(object):
 
 
 # Transform input RGB image (210, 160, 3) to Grayscale Tensor of shape (bs, 1, 65, 50)
-transform_screen = T.Compose([T.ToPILImage(), T.Resize(100),T.Grayscale(), T.ToTensor()])
+transform_screen = T.Compose([T.ToPILImage(), T.Resize(60), T.Grayscale(), T.ToTensor()])
 
 def get_screen(environment):
     """
@@ -100,7 +99,7 @@ def get_screen(environment):
     screen = screen.unsqueeze(0)
     return screen
 
-def transform_frame(frame, device="cuda"):
+def transform_frame(frame):
     """
     Transform a frame
     :param frame:
@@ -108,7 +107,7 @@ def transform_frame(frame, device="cuda"):
     """
     frame = transform_screen(frame)
     frame = frame / 255
-    return frame.to(device)
+    return frame
 
 def game_step(env, action, n_steps=3):
     """
@@ -133,7 +132,7 @@ def game_step(env, action, n_steps=3):
         state = None
     else:
         state = torch.stack(frames, 0)
-        state = state.transpose(0, 1).cuda()
+        state = state.transpose(0, 1)
 
     return (state, reward, last_state)
 
@@ -157,17 +156,21 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
 
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.uint8)
     non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+    non_final_next_states = non_final_next_states.to(device)
 
     state_batch = torch.cat(batch.state)
+    state_batch = state_batch.to(device)
     action_batch = torch.tensor(batch.action).unsqueeze(1)
+    action_batch = action_batch.to(device)
     reward_batch = torch.cat(batch.reward)
+    reward_batch = reward_batch.to(device)
 
     # Compute Policy values
-    state_action_values = policy(state_batch)
-    state_action_values = state_action_values.gather(1, action_batch.cuda())
+    state_action_values = policy(state_batch).to(device)
+    state_action_values = state_action_values.gather(1, action_batch)
 
     next_state_values = torch.zeros(batch_size, device=device)
-    next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach()
+    next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach().to(device)
     expected_state_action_values = reward_batch + gamma * next_state_values
     expected_state_action_values = expected_state_action_values.unsqueeze(1)
 

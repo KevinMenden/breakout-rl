@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 # create environment
-env = gym.make('Assault-v0')
+env = gym.make('Pong-v0')
 
 print(env.action_space)
 print(env.action_space.sample())

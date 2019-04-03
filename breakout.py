@@ -9,19 +9,19 @@ import math
 #=== PARAMETERS ===#
 batch_size = 32
 episodes = 10000
-memory_capacity = 50000
+memory_capacity = 100000
 gamma = 0.9
-target_update = 5
+target_update = 20
 epsilon_start = 1
 epsilon_end = 0.1
-epsilon_steps = 1000000
-n_steps=4
+epsilon_steps = 100000
+n_steps=3
 lr = 0.0001
-n_actions=4
+n_actions=6
 #==================#
 
 # Create Breakout environment
-env = gym.make('Breakout-v0')
+env = gym.make('Pong-v0')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -29,7 +29,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 policy = DQN(n_actions=n_actions).to(device)
 target = DQN(n_actions=n_actions).to(device)
 target.load_state_dict(policy.state_dict())
-
 
 # Define Loss
 loss = nn.MSELoss()
@@ -62,12 +61,13 @@ for ep in range(episodes):
         epsilon = epsilon - (epsilon_start - epsilon_end)/epsilon_steps
 
         # choose an action based on the current state
+        state = state.cuda()
         action = policy.choose_action(state, epsilon=epsilon)
 
         # make one step with the action
         next_state, reward, done = game_step(env, action, n_steps=n_steps)
         complete_reward += reward
-        reward = torch.tensor([reward], dtype=torch.float32, device=device)
+        reward = torch.tensor([reward], dtype=torch.float32)
 
         # save the current experience
         memory.push(Experience(state, action, reward, next_state))
