@@ -21,11 +21,11 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.n_actions = n_actions
 
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=8, stride=4)
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=2)
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=4, stride=2)
-        self.fc1 = nn.Linear(192, 256)
-        self.fc2 = nn.Linear(256, self.n_actions)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self.fc1 = nn.Linear(1536, 32)
+        self.fc2 = nn.Linear(32, self.n_actions)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -44,7 +44,8 @@ class DQN(nn.Module):
         :return:
         """
         if random.random() < epsilon:
-            return torch.tensor(np.random.choice([0, 1, 2, 3]))
+            with torch.no_grad():
+                return torch.tensor(np.random.choice([0, 1, 2, 3]))
         else:
             with torch.no_grad():
                 return torch.argmax(self.forward(state))
@@ -154,7 +155,7 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
     batch = memory.sample(batch_size)
     batch = Experience(*zip(*batch))
 
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.uint8)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.bool)
     non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
     non_final_next_states = non_final_next_states.to(device)
 
