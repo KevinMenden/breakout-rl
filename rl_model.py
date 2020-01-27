@@ -21,7 +21,7 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.n_actions = n_actions
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=8, stride=4)
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
         self.fc1 = nn.Linear(1536, 32)
@@ -36,7 +36,7 @@ class DQN(nn.Module):
         x = self.fc2(x)
         return x
 
-    def choose_action(self, state, epsilon=0.8):
+    def choose_action(self, state, epsilon):
         """
         Choose which action to take
         :param state:
@@ -85,20 +85,22 @@ class Replaymemory(object):
         return len(self.memory)
 
 
-# Transform input RGB image (210, 160, 3) to Grayscale Tensor of shape (bs, 1, 65, 50)
-transform_screen = T.Compose([T.ToPILImage(), T.Resize(60), T.Grayscale(), T.ToTensor()])
+# Transform input RGB image (210, 160, 3) to Grayscale Tensor of shape (bs, 1, 84, 84)  like in original
+# publication
+transform_screen = T.Compose([T.ToPILImage(), T.Resize((84, 84)), T.Grayscale(), T.ToTensor()])
 
-def get_screen(environment):
-    """
-    Render and transform a screen given an environment
-    :param environment:
-    :return:
-    """
-    screen = environment.render(mode='rgb_array')
-    screen = transform_screen(screen)
-    screen = screen / 255 # normalization
-    screen = screen.unsqueeze(0)
-    return screen
+
+# def get_screen(environment):
+#     """
+#     Render and transform a screen given an environment
+#     :param environment:
+#     :return:
+#     """
+#     screen = environment.render(mode='rgb_array')
+#     screen = transform_screen(screen)
+#     screen = screen / 255 # normalization
+#     screen = screen.unsqueeze(0)
+#     return screen
 
 def transform_frame(frame):
     """
