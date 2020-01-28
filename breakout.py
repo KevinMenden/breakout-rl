@@ -3,7 +3,6 @@ Learning how to play Breakout by Reinforcement Learning
 
 """
 from itertools import count
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,10 +10,8 @@ import torchvision.transforms as T
 import torch.optim as optim
 import gym
 import random
-import numpy as np
 from collections import namedtuple
-import math
-
+from torch.nn.init import kaiming_uniform_
 
 
 """
@@ -33,7 +30,7 @@ class DQN(nn.Module):
         self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.fc1 = nn.Linear(1536, 512)
+        self.fc1 = nn.Linear(3136, 512)
         self.fc2 = nn.Linear(512, self.n_actions)
 
     def forward(self, x):
@@ -54,7 +51,7 @@ class DQN(nn.Module):
         """
         if random.random() < epsilon:
             with torch.no_grad():
-                return torch.tensor(np.random.choice([0, 1, 2, 3]))
+                return torch.tensor(random.randrange(self.n_actions))
         else:
             with torch.no_grad():
                 return torch.argmax(self.forward(state))
@@ -74,7 +71,7 @@ class Replaymemory(object):
         :param experience:
         :return:
         """
-        if self.position == self.capacity:
+        if self.position >= self.capacity:
             self.position = 0
         if len(self.memory) < self.capacity:
             self.memory.append(None)
@@ -93,23 +90,12 @@ class Replaymemory(object):
     def __len__(self):
         return len(self.memory)
 
+# Named tuple to store experiences in
+Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))
 
 # Transform input RGB image (210, 160, 3) to Grayscale Tensor of shape (bs, 1, 84, 84)  like in original
 # publication
 transform_screen = T.Compose([T.ToPILImage(), T.Resize((84, 84)), T.Grayscale(), T.ToTensor()])
-
-
-# def get_screen(environment):
-#     """
-#     Render and transform a screen given an environment
-#     :param environment:
-#     :return:
-#     """
-#     screen = environment.render(mode='rgb_array')
-#     screen = transform_screen(screen)
-#     screen = screen / 255 # normalization
-#     screen = screen.unsqueeze(0)
-#     return screen
 
 def transform_frame(frame):
     """
@@ -148,8 +134,14 @@ def game_step(env, action, n_steps=4):
 
     return (state, reward, last_state)
 
-# Named tuple to store experiences in
-Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state'))
+def clip_reward(r):
+    if r > 0:
+        return 1
+    elif r < 0:
+        return -1
+    else:
+        return 0
+
 
 
 def training_step(policy, target, memory, optimizer, criterion, batch_size=32, gamma=0.9, device="cuda"):
@@ -173,6 +165,7 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
     state_batch = torch.cat(batch.state)
     state_batch = state_batch.to(device)
     action_batch = torch.tensor(batch.action).unsqueeze(1)
+    #action_batch = torch.cat(batch.action)
     action_batch = action_batch.to(device)
     reward_batch = torch.cat(batch.reward)
     reward_batch = reward_batch.to(device)
@@ -182,8 +175,8 @@ def training_step(policy, target, memory, optimizer, criterion, batch_size=32, g
     state_action_values = state_action_values.gather(1, action_batch)
 
     next_state_values = torch.zeros(batch_size, device=device)
-    next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach().to(device)
-    expected_state_action_values = reward_batch + gamma * next_state_values
+    next_state_values[non_final_mask] = target(non_final_next_states).max(1)[0].detach()
+    expected_state_action_values = reward_batch + (gamma * next_state_values)
     expected_state_action_values = expected_state_action_values.unsqueeze(1)
 
     loss = criterion(state_action_values, expected_state_action_values)
@@ -200,27 +193,37 @@ Running the algorithm and the game
 """
 
 #=== PARAMETERS ===#
-batch_size = 32
+batch_size = 128
 episodes = 100000
-memory_capacity = 120000
-memory_init_size = 20000
-gamma = 0.9
-target_update = 10
+memory_capacity = 80000
+memory_init_size = 10000
+gamma = 0.99
+target_update = 10000
 epsilon_start = 1
-epsilon_end = 0.1
-epsilon_steps = 1000000
+epsilon_end = 0.01
+epsilon_steps = 30000
 n_steps = 4
-lr = 0.00025
-n_actions = 4
+lr = 0.0000625
+
 #==================#
 
 # Create Breakout environment
-env = gym.make('Breakout-v0')
+env = gym.make('Pong-v0')
+n_actions = env.action_space.n
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# takes in a module and applies the specified weight initialization
+def init_weights(m):
+    if type(m) == nn.Linear:
+        kaiming_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+
 # Create networks
-policy = DQN(n_actions=n_actions).to(device)
+print(device)
+policy = DQN(n_actions=n_actions).cuda()
+policy.apply(init_weights)
 target = DQN(n_actions=n_actions).to(device)
 target.load_state_dict(policy.state_dict())
 
@@ -236,14 +239,10 @@ memory = Replaymemory(memory_capacity)
 state_counter = 0
 epsilon = epsilon_start
 
-# Fill the memory up til memory_init_size
-#for _ in range(memory_init_size):
-
-
 # Play the game
 for ep in range(episodes):
 
-    env.reset() # reset environment
+    env.reset()  # reset environment
     # get initial state
     action = env.action_space.sample()
     state, _, _ = game_step(env, action, n_steps=n_steps)
@@ -251,9 +250,10 @@ for ep in range(episodes):
     # play one episode
     for t in count():
         state_counter += 1
+        frames_seen = state_counter * n_steps  # number of frames that have been seen
 
-        if t % 2:
-            env.render()
+        #if t % 2:
+        #    env.render()
 
         # adjust epsilon
         epsilon = epsilon - (epsilon_start - epsilon_end)/epsilon_steps
@@ -265,6 +265,7 @@ for ep in range(episodes):
 
         # make one step with the action
         next_state, reward, done = game_step(env, action, n_steps=n_steps)
+        #reward = clip_reward(reward)
         complete_reward += reward
         reward = torch.tensor([reward], dtype=torch.float32)
 
@@ -278,19 +279,15 @@ for ep in range(episodes):
             # Perform one step of training on the policy network
             training_step(policy, target, memory, optimizer, criterion=loss, batch_size=batch_size, gamma=gamma)
 
-            if ep % target_update == 0:
-                target.load_state_dict(policy.state_dict())
+            # Update the target network after 10000 frames seen
+        if frames_seen % target_update == 0:
+            target.load_state_dict(policy.state_dict())
+            print("update target")
 
         if done:
             mem_len = len(memory.memory)
-            print(f"Episode: {ep}, Reward: {complete_reward}, Epsilon: {epsilon}, Memory: {mem_len}")
-            #print(epsilon)
+            print(f"Episode: {ep}, Reward: {complete_reward}, Epsilon: {epsilon}, Memory: {mem_len}, Frames: {frames_seen}")
             break
 
 
 env.close()
-
-
-
-
-
