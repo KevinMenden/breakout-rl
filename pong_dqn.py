@@ -219,7 +219,7 @@ gamma = 0.99
 target_update = 10000
 epsilon_start = 1
 epsilon_end = 0.01
-epsilon_steps = 30000
+epsilon_steps = 300000
 n_steps = 4
 lr = 0.0000625
 
