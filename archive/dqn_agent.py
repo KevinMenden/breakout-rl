@@ -1,7 +1,61 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 import numpy as np
-import torch as T
-from deep_q_network import DeepQNetwork
-from replay_memory import ReplayBuffer
+from archive.replay_buffer import ReplayBuffer
+
+
+class DQN(nn.Module):
+    """
+    The policy network for appoximation of the Q function
+    """
+
+    def __init__(self, lr, n_actions, name, input_dims, ckpt_dir):
+        super(DQN, self).__init__()
+        self.ckpt_dir = ckpt_dir
+        self.ckpt_file = self.ckpt_dir / name
+
+        # Define layers
+        self.conv1 = nn.Conv2d(input_dims[0], 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        fc_input_dims = self.calculate_conv_output_dims(input_dims)
+        self.fc1 = nn.Linear(fc_input_dims, 512)
+        self.fc2 = nn.Linear(512, n_actions)
+
+        # Optimizer, loss, device
+        self.optimizer = optim.RMSprop(self.parameters(), lr=lr)
+        self.loss = nn.MSELoss()
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.to(self.device)
+        print(f"Device: {self.device}")
+
+    
+    def calculate_conv_output_dims(self, input_dims):
+        state = torch.zeros(1, *input_dims)
+        dims = self.conv1(state)
+        dims = self.conv2(dims)
+        dims = self.conv3(dims)
+        return int(np.prod(dims.size()))
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+    def save_checkpoint(self):
+        print('Saving checkpoint ...')
+        torch.save(self.state_dict(), self.ckpt_file)
+    
+    def load_checkpoint(self):
+        print('Loading checkpoint  ...')
+        self.load_state_dict(torch.load(self.ckpt_file))
+
 
 class DQNAgent(object):
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
@@ -24,22 +78,21 @@ class DQNAgent(object):
 
         self.memory = ReplayBuffer(mem_size, input_dims, n_actions)
 
-        self.q_eval = DeepQNetwork(self.lr, self.n_actions,
-                                    input_dims=self.input_dims,
-                                    name=self.env_name+'_'+self.algo+'_q_eval',
-                                    chkpt_dir=self.chkpt_dir)
-
-        self.q_next = DeepQNetwork(self.lr, self.n_actions,
+        self.q_eval = DQN(self.lr, self.n_actions,
                                     input_dims=self.input_dims,
                                     name=self.env_name+'_'+self.algo+'_q_next',
-                                    chkpt_dir=self.chkpt_dir)
+                                    ckpt_dir=self.chkpt_dir)
 
+        self.q_next = DQN(self.lr, self.n_actions,
+                                    input_dims=self.input_dims,
+                                    name=self.env_name+'_'+self.algo+'_q_next',
+                                    ckpt_dir=self.chkpt_dir)
 
     def choose_action(self, observation):
         if np.random.random() > self.epsilon:
-            state = T.tensor([observation],dtype=T.float).to(self.q_eval.device)
+            state = torch.tensor([observation],dtype=torch.float).to(self.q_eval.device)
             actions = self.q_eval.forward(state)
-            action = T.argmax(actions).item()
+            action = torch.argmax(actions).item()
         else:
             action = np.random.choice(self.action_space)
 
@@ -52,11 +105,11 @@ class DQNAgent(object):
         state, action, reward, new_state, done = \
                                 self.memory.sample_buffer(self.batch_size)
 
-        states = T.tensor(state).to(self.q_eval.device)
-        rewards = T.tensor(reward).to(self.q_eval.device)
-        dones = T.tensor(done).to(self.q_eval.device)
-        actions = T.tensor(action).to(self.q_eval.device)
-        states_ = T.tensor(new_state).to(self.q_eval.device)
+        states = torch.tensor(state).to(self.q_eval.device)
+        rewards = torch.tensor(reward).to(self.q_eval.device)
+        dones = torch.tensor(done).to(self.q_eval.device)
+        actions = torch.tensor(action).to(self.q_eval.device)
+        states_ = torch.tensor(new_state).to(self.q_eval.device)
 
         return states, actions, rewards, states_, dones
 

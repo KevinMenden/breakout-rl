@@ -1,6 +1,6 @@
 import numpy as np
-from dqn_agent import DQNAgent
-from utils import plot_learning_curve, make_env
+from archive.dqn_agent import DQNAgent
+from archive.utils import plot_learning_curve, make_env
 from pathlib import Path
 
 if __name__ == '__main__':

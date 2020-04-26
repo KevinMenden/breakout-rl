@@ -1,5 +1,7 @@
 import collections
-import cv2
+from skimage.color import rgb2gray
+from skimage.transform import resize
+#import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import gym
@@ -84,9 +86,10 @@ class PreprocessFrame(gym.ObservationWrapper):
                                     shape=self.shape, dtype=np.float32)
 
     def observation(self, obs):
-        new_frame = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
-        resized_screen = cv2.resize(new_frame, self.shape[1:],
-                                    interpolation=cv2.INTER_AREA)
+        #new_frame = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
+        #resized_screen = cv2.resize(new_frame, self.shape[1:], interpolation=cv2.INTER_AREA)
+        new_frame = rgb2gray(obs) * 255
+        resized_screen = resize(new_frame, self.shape[1:], anti_aliasing=True)
         new_obs = np.array(resized_screen, dtype=np.uint8).reshape(self.shape)
         new_obs = new_obs / 255.0
 

@@ -1,11 +1,10 @@
 import gym
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from utils import plot_learning_curve
+from archive.utils import plot_learning_curve
 
 class DNN(nn.Module):
 

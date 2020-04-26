@@ -1,24 +1,36 @@
 #import gym
 import numpy as np
-from .dqn_agent import DQNAgent
-from .utils import plot_learning_curve, make_env
+from dqn_agent import DQNAgent
+from utils import plot_learning_curve, make_env
 from pathlib import Path
+import sys
+import warnings
+import timeit
+from torch.utils import tensorboard
 
-
-env = make_env('PongNoFrameskip-v4')
+env = make_env('BreakoutNoFrameskip-v4')
 best_score = -np.inf
-load_checkpoint = False
-n_games = 100
+load_checkpoint = True
+n_games = 500
+do_training = True
 
 ckpt_dir = Path("C:/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/models")
 figure_dir = Path("C:/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/plots")
+log_dir = Path("C:/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/plots")
 
-agent = DQNAgent(gamma=0.99, epsilon=1.0, lr=0.0001,
+# for WSL
+#ckpt_dir = Path("/mnt/c/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/models")
+#figure_dir = Path("/mnt/c/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/plots")
+#log_dir = Path("/mnt/c/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/plots")
+
+writer = tensorboard.SummaryWriter(log_dir=log_dir)
+
+agent = DQNAgent(gamma=0.99, epsilon=0.11, lr=0.0001,
                  input_dims=(env.observation_space.shape),
                  n_actions=env.action_space.n, mem_size=50000, eps_min=0.1,
                  batch_size=32, replace=1000, eps_dec=1e-5,
                  chkpt_dir=ckpt_dir, algo='DQNAgent',
-                 env_name='PongNoFrameskip-v4')
+                 env_name='BreakoutNoFrameskip-v4' )
 
 if load_checkpoint:
     agent.load_models()
@@ -29,6 +41,7 @@ n_steps = 0
 scores, eps_history, steps_array = [], [], []
 
 for i in range(n_games):
+    start = timeit.default_timer()
     done = False
     observation = env.reset()
 
@@ -38,7 +51,9 @@ for i in range(n_games):
         observation_, reward, done, info = env.step(action)
         score += reward
 
-        if not load_checkpoint:
+        env.render()
+
+        if do_training:
             agent.store_transition(observation, action,
                                    reward, observation_, int(done))
             agent.learn()
@@ -47,19 +62,24 @@ for i in range(n_games):
     scores.append(score)
     steps_array.append(n_steps)
 
-    avg_score = np.mean(scores[-100:])
+    avg_score = np.mean(scores[-10:])
+    end = timeit.default_timer()
+    game_time = end - start
+    writer.add_scalar("Score", score, n_steps)
+    writer.add_scalar("Epsilon", agent.epsilon, n_steps)
+    
     print('episode: ', i,'score: ', score,
-          ' average score %.1f' % avg_score, 'best score %.2f' % best_score,
+          ' average score %.1f' % avg_score, 'time %.2f' % game_time,
           'epsilon %.2f' % agent.epsilon, 'steps', n_steps)
 
     if avg_score > best_score:
-        #if not load_checkpoint:
-        #    agent.save_models()
+        if do_training:
+            agent.save_models()
         best_score = avg_score
 
     eps_history.append(agent.epsilon)
-    if load_checkpoint and n_steps >= 18000:
-        break
-
+    
+    
+writer.close()
 x = [i+1 for i in range(len(scores))]
-#plot_learning_curve(steps_array, scores, eps_history, figure_file)
+plot_learning_curve(steps_array, scores, eps_history, figure_file)
