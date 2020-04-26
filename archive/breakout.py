@@ -208,7 +208,7 @@ lr = 0.0000625
 #==================#
 
 # Create Breakout environment
-env = gym.make('Pong-v0')
+env = gym.make('PongNoFrameskip-v4')
 n_actions = env.action_space.n
 
 
