@@ -8,10 +8,10 @@ import warnings
 import timeit
 from torch.utils import tensorboard
 
-env = make_env('BreakoutNoFrameskip-v4')
+env = make_env('Pong-v0')
 best_score = -np.inf
-load_checkpoint = True
-n_games = 500
+load_checkpoint = False
+n_games = 1000
 do_training = True
 
 ckpt_dir = Path("C:/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/models")
@@ -25,12 +25,12 @@ log_dir = Path("C:/Users/kevin/OneDrive/Dokumente/Coding/reinforcement_learning/
 
 writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
-agent = DQNAgent(gamma=0.99, epsilon=0.11, lr=0.0001,
+agent = DQNAgent(gamma=0.99, epsilon=1, lr=0.0001,
                  input_dims=(env.observation_space.shape),
                  n_actions=env.action_space.n, mem_size=50000, eps_min=0.1,
                  batch_size=32, replace=1000, eps_dec=1e-5,
                  chkpt_dir=ckpt_dir, algo='DQNAgent',
-                 env_name='BreakoutNoFrameskip-v4' )
+                 env_name='Pong-v0' )
 
 if load_checkpoint:
     agent.load_models()
@@ -62,7 +62,7 @@ for i in range(n_games):
     scores.append(score)
     steps_array.append(n_steps)
 
-    avg_score = np.mean(scores[-10:])
+    avg_score = np.mean(scores[-50:])
     end = timeit.default_timer()
     game_time = end - start
     writer.add_scalar("Score", score, n_steps)
